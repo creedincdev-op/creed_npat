@@ -6,6 +6,7 @@ import { Player, StateComponentType } from "../../app.types";
 import { generateScoringPartners } from "../../app.utils";
 import { DEFAULT_CATEGORIES } from "../../constants";
 import { useDelay } from "../../hooks/delay.hook";
+import { UserList } from "../user-list";
 import { ScoreCardBody } from "./card-body";
 import { ScoreCardHeader } from "./card-header";
 import styles from "./score.module.css";
@@ -24,6 +25,12 @@ export const Score: StateComponentType = ({
   const { allResponses, categories = [], player, scoringPartners } = appContext;
   const activeCategories = categories.length > 0 ? categories : DEFAULT_CATEGORIES;
   const userId = useMemo(() => player?.userId ?? "", [player]);
+
+  const orderedPlayers = useMemo(() => {
+    return players
+      .slice()
+      .sort((a, b) => Number(Boolean(b.leader)) - Number(Boolean(a.leader)));
+  }, [players]);
 
   const allResponsesForRound = useMemo(
     () => allResponses[context.round] ?? {},
@@ -74,7 +81,7 @@ export const Score: StateComponentType = ({
         });
       }
     }
-  }, [channel, eligiblePlayersForScoring, userResponseForRound]);
+  }, [channel, delay, eligiblePlayersForScoring, player?.leader, round, setAppContext, userId, userResponseForRound]);
 
   const [currentScore, setCurrentScore] = useState<Record<string, number>>({});
 
@@ -182,57 +189,66 @@ export const Score: StateComponentType = ({
   ]);
 
   if (loading) {
-    return <div>Submit Responses...</div>;
+    return <div className={styles.loading}><h3>Submit Responses...</h3></div>;
   }
 
   return (
     <div className={styles.container}>
+      <button className={styles.controlLeft} type="button" aria-label="Mute">
+        ??
+      </button>
+      <button className={styles.controlRight} type="button" aria-label="Exit">
+        X
+      </button>
+
+      <div className={styles.topPlayers}>
+        <UserList players={orderedPlayers} />
+      </div>
+
       <h1>Time to score!</h1>
       <div className={styles.legend}>
         <div className={styles.yellowBox} />
         <span>- means duplicate answer</span>
       </div>
 
-      {responseList.map(({ user, responses }, userIndex) => {
-        const currentUserId = user?.userId ?? "";
-        const isScoring = currentUserId === playerIdToScore;
-        const similarCheckFn = similarityCheck(currentUserId);
+      <div className={styles.cardGrid}>
+        {responseList.map(({ user, responses }, userIndex) => {
+          const currentUserId = user?.userId ?? "";
+          const isScoring = currentUserId === playerIdToScore;
+          const similarCheckFn = similarityCheck(currentUserId);
 
-        return (
-          <Fragment key={currentUserId || userIndex}>
-            <div className={styles.card}>
-              <ScoreCardHeader
-                isCurrentUser={userId === currentUserId}
-                isScoring={isScoring}
-                name={user?.name ?? ""}
-              />
-              <div className={styles.scoreLayout}>
-                {activeCategories.map((category) => {
-                  return (
-                    <ScoreCardBody
-                      key={`${currentUserId}-${category}`}
-                      category={category}
-                      currentScore={currentScore}
-                      isScoring={isScoring}
-                      isSimilar={similarCheckFn(category)}
-                      response={responses?.[category]}
-                      setCurrentScore={setCurrentScore}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-            {userIndex === 0 && (
-              <>
-                <div className={styles.buttonWrapper}>
-                  <button onClick={onReadyClick}>Ready</button>
+          return (
+            <Fragment key={currentUserId || userIndex}>
+              <div className={styles.card}>
+                <ScoreCardHeader
+                  isCurrentUser={userId === currentUserId}
+                  isScoring={isScoring}
+                  name={user?.name ?? ""}
+                />
+                <div className={styles.scoreLayout}>
+                  {activeCategories.map((category) => {
+                    return (
+                      <ScoreCardBody
+                        key={`${currentUserId}-${category}`}
+                        category={category}
+                        currentScore={currentScore}
+                        isScoring={isScoring}
+                        isSimilar={similarCheckFn(category)}
+                        response={responses?.[category]}
+                        setCurrentScore={setCurrentScore}
+                      />
+                    );
+                  })}
                 </div>
-                {responseList.length > 1 && <h3>Other responses</h3>}
-              </>
-            )}
-          </Fragment>
-        );
-      })}
+              </div>
+            </Fragment>
+          );
+        })}
+      </div>
+
+      <div className={styles.buttonWrapper}>
+        <button onClick={onReadyClick}>Submit</button>
+      </div>
     </div>
   );
 };

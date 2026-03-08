@@ -6,12 +6,14 @@ import { Game, StateComponentType } from "../../app.types";
 import { generateDefaultResponses } from "../../app.utils";
 import { DEFAULT_CATEGORIES } from "../../constants";
 import { getLetterFromAlphabet } from "../create-game/create-game.utils";
+import { UserList } from "../user-list";
 import styles from "./input-list.module.css";
 
 export const InputList: StateComponentType = ({
   channel,
   context,
   isSubscribed,
+  players,
   send,
 }) => {
   const [countDown, setCountdown] = useState(5);
@@ -19,8 +21,16 @@ export const InputList: StateComponentType = ({
   const [appContext, setAppContext] = useAppContext();
   const { categories, currentLetter, maxRounds, player, possibleAlphabet } =
     appContext;
+
   const activeCategories =
     categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
+
+  const orderedPlayers = useMemo(() => {
+    return players
+      .slice()
+      .sort((a, b) => Number(Boolean(b.leader)) - Number(Boolean(a.leader)));
+  }, [players]);
+
   const { register, getValues } = useForm<any>({
     mode: "onSubmit",
     defaultValues: generateDefaultResponses(activeCategories),
@@ -39,7 +49,7 @@ export const InputList: StateComponentType = ({
   useAsync(async () => {
     if (channel && player?.leader && isCountDownFinished) {
       const letter = getLetterFromAlphabet(possibleAlphabet);
-      let payload: Partial<Game> = letter;
+      const payload: Partial<Game> = letter;
 
       await channel.send({
         type: "broadcast",
@@ -111,38 +121,51 @@ export const InputList: StateComponentType = ({
   }
 
   return (
-    <div>
-      <div className={styles.header}>
-        <div className={styles.headerContent}>
-          <h2>
-            Round:{" "}
-            <span>
-              #{context.round}/{context.maxRounds}
-            </span>
-          </h2>
-          <h2>
-            Current Letter: <span className={styles.currentLetter}>{currentLetter}</span>
-          </h2>
-        </div>
+    <div className={styles.container}>
+      <button className={styles.controlLeft} type="button" aria-label="Mute">
+        ??
+      </button>
+      <button className={styles.controlRight} type="button" aria-label="Exit">
+        X
+      </button>
+
+      <div className={styles.topPlayers}>
+        <UserList players={orderedPlayers} />
       </div>
 
-      {activeCategories &&
-        activeCategories.map((category: string, index: number) => (
-          <div key={index} className={styles.inputListItem}>
-            <input
-              {...register(category)}
-              autoFocus={index === 0}
-              maxLength={30}
-              placeholder={category}
-              type="text"
-            />
-          </div>
-        ))}
+      <div className={styles.headerContent}>
+        <h2>
+          Round <span>#{context.round}/{context.maxRounds}</span>
+        </h2>
+        <h2>
+          Current Alphabet: <span className={styles.currentLetter}>{currentLetter}</span>
+        </h2>
+      </div>
 
-      <div className={styles.buttonWrapper}>
-        <button disabled={isSubmitted} onClick={onSubmitHanlder}>
-          Submit
-        </button>
+      <div className={styles.clockWrap} aria-hidden="true">
+        <span className={styles.clockFace}>?</span>
+      </div>
+
+      <div className={styles.notebook}>
+        <div className={styles.inputGrid}>
+          {activeCategories.map((category: string, index: number) => (
+            <div key={index} className={styles.inputListItem}>
+              <input
+                {...register(category)}
+                autoFocus={index === 0}
+                maxLength={30}
+                placeholder={category}
+                type="text"
+              />
+            </div>
+          ))}
+        </div>
+
+        <div className={styles.buttonWrapper}>
+          <button disabled={isSubmitted} onClick={onSubmitHanlder}>
+            Submit Response
+          </button>
+        </div>
       </div>
     </div>
   );

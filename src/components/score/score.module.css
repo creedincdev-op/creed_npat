@@ -3,16 +3,55 @@
   text-align: center;
 }
 
+.container {
+  position: relative;
+  padding-top: 2rem;
+}
+
+.controlLeft,
+.controlRight {
+  position: absolute;
+  top: 0;
+  width: 2.8rem;
+  min-width: 2.8rem;
+  height: 2.8rem;
+  border-radius: 999px;
+  border: 2px solid red;
+  background: transparent;
+  color: #111;
+  padding: 0;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.controlLeft {
+  left: 0;
+}
+
+.controlRight {
+  right: 0;
+}
+
+.topPlayers {
+  display: flex;
+  justify-content: center;
+  margin: 0.5rem 0 1rem;
+}
+
 .container > h1 {
   text-align: center;
-  margin-top: 0;
+  margin: 0 0 0.7rem;
 }
 
 .legend {
   display: flex;
   align-items: center;
+  justify-content: center;
   margin-bottom: 1rem;
 }
+
 .legend > span {
   font-size: 1rem;
 }
@@ -24,21 +63,32 @@
   margin-right: 0.5rem;
 }
 
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 1.25rem;
+}
+
 .card {
-  background: white;
-  padding: 1rem;
-  border: 0.5px solid rgba(0, 0, 0, 0.03);
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      #ececec 0,
+      #ececec 2px,
+      #f4f4f4 2px,
+      #f4f4f4 28px
+    );
+  border-left: 3px solid #b4d5de;
   box-shadow: 0 0.5rem 2.5rem rgb(0 0 0 / 8%);
-  border-radius: 0.5rem;
+  padding: 1rem;
   margin-bottom: 1rem;
 }
-.card:last-of-type {
-  margin-bottom: 2rem;
-}
+
 .card > h2 {
   margin-top: 0;
   text-align: center;
 }
+
 .card > h2 > span > span {
   color: dodgerblue;
 }
@@ -52,11 +102,13 @@
   display: flex;
   justify-content: space-between;
   min-height: 2rem;
-  font-size: 1.125rem;
+  font-size: 1.25rem;
 }
+
 .scoreListItem:not(:last-child) {
-  margin-bottom: 1rem;
+  margin-bottom: 0.8rem;
 }
+
 .scoreListItem > p {
   margin: 0 0.25rem 0 0;
   overflow-wrap: anywhere;
@@ -68,5 +120,11 @@
 }
 
 .buttonWrapper > button {
-  margin: 0 auto 1rem;
+  margin: 1.2rem auto 0.8rem;
+}
+
+@media (max-width: 900px) {
+  .cardGrid {
+    grid-template-columns: 1fr;
+  }
 }

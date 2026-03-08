@@ -3,7 +3,6 @@ import { useTimeoutFn } from "react-use";
 import { useAppContext } from "../../app.context";
 import { StateComponentType } from "../../app.types";
 import { useDelay } from "../../hooks/delay.hook";
-import { UserCard } from "../user-card";
 import { UserList } from "../user-list";
 import styles from "./waiting-room.module.css";
 
@@ -21,10 +20,11 @@ export const WaitingRoom: StateComponentType = ({
 
   const { maxRounds, categories, player } = appContext;
 
-  const otherPlayers = useMemo(
-    () => players.filter((p) => player?.userId !== p.userId),
-    [player?.userId, players]
-  );
+  const orderedPlayers = useMemo(() => {
+    return players
+      .slice()
+      .sort((a, b) => Number(Boolean(b.leader)) - Number(Boolean(a.leader)));
+  }, [players]);
 
   useTimeoutFn(() => {
     setCopyTimeout(0);
@@ -59,7 +59,6 @@ export const WaitingRoom: StateComponentType = ({
       return;
     }
 
-    // Retry start broadcast twice for clients that subscribed milliseconds late.
     await delay(350);
     await channel.send({
       type: "broadcast",
@@ -79,13 +78,15 @@ export const WaitingRoom: StateComponentType = ({
 
   return (
     <div className={styles.container}>
-      <h1>
-        Welcome <span>{player?.name}!</span>
-      </h1>
-      <h2 className={styles.heading}>You are in the lobby</h2>
+      <button className={styles.controlLeft} type="button" aria-label="Mute">
+        ??
+      </button>
+      <button className={styles.controlRight} type="button" aria-label="Exit">
+        X
+      </button>
 
       <div className={styles.roomCodeContainer}>
-        <p>Your room code is:</p>
+        <p>Your Game Code is:</p>
 
         <div className={styles.roomCodeContent}>
           <p className={styles.roomCode}>{context.roomCode}</p>
@@ -93,26 +94,23 @@ export const WaitingRoom: StateComponentType = ({
             onClick={copyRoomCodeToClipboard}
             disabled={copyTimeout !== 0}
           >
-            {copyTimeout !== 0 ? "Copied" : "Copy Link"}
+            {copyTimeout !== 0 ? "Copied" : "Copy"}
           </button>
         </div>
 
-        <p>Click &quot;Copy Link&quot; button to copy room link to share!</p>
+        <p>Send it to your friends to start the game!</p>
       </div>
 
-      <h2 className={player?.leader ? styles.highlight : ""}>
-        {player?.leader
-          ? "You are the room leader"
-          : "Waiting for the leader to begin the game..."}
-      </h2>
-      {player && <UserCard player={player} />}
+      <h2 className={styles.playersHeading}>Who&apos;s Playing?</h2>
+      <div className={styles.playerWrap}>
+        <UserList players={orderedPlayers} />
+      </div>
 
-      {otherPlayers.length > 0 && (
-        <div className={styles.userListContainer}>
-          <h2>Players in the room</h2>
-          <UserList players={otherPlayers} />
-        </div>
-      )}
+      <p className={styles.waitingText}>
+        {player?.leader
+          ? "You are admin. Start when everyone joins."
+          : "Waiting for admin to start the game..."}
+      </p>
 
       <div className={styles.buttonWrapper}>
         {player?.leader && (
@@ -121,7 +119,7 @@ export const WaitingRoom: StateComponentType = ({
           </button>
         )}
       </div>
-      {startError && <p>{startError}</p>}
+      {startError && <p className={styles.errorText}>{startError}</p>}
     </div>
   );
 };

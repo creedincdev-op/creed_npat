@@ -5,10 +5,20 @@ import { Player, StateComponentProps } from "./app.types";
 import { getAvatarForUser } from "./app.utils";
 import { useChannel } from "./hooks/channel.hook";
 
+type HeartbeatEntry = {
+  player: Player;
+  seenAt: number;
+};
+
+const HEARTBEAT_EVENT = "playerPing";
+const HEARTBEAT_INTERVAL_MS = 1800;
+const HEARTBEAT_TIMEOUT_MS = 7000;
+
 export const useAppChannel = ({ context, send }: StateComponentProps) => {
   const getChannel = useChannel();
   const [isSubscribed, setIsSubscribed] = useState<boolean>();
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [presencePlayers, setPresencePlayers] = useState<Player[]>([]);
+  const [heartbeatPlayers, setHeartbeatPlayers] = useState<Record<string, HeartbeatEntry>>({});
   const [hasLeaderExited, setHasLeaderExited] = useState<boolean>();
   const [newPlayer, setNewPlayer] = useState<Player>();
   const [appContext, setAppContext] = useAppContext();
@@ -38,12 +48,9 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
     }
   }, [getChannel, normalizedRoomCode, presenceSessionKey]);
 
-  const updatePlayers = useCallback((newPlayers: Player[]) => {
-    setPlayers(newPlayers);
-  }, []);
-
   const toPlayer = useCallback((raw: any): Player | null => {
     if (!raw) return null;
+
     const candidate =
       raw.userId
         ? raw
@@ -59,33 +66,93 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
       userId: candidate.userId,
       name: candidate.name || "Player",
       leader: Boolean(candidate.leader),
-      emoji: candidate.emoji || "",
+      emoji: candidate.emoji || getAvatarForUser(candidate.userId),
       restoredOn: Number(candidate.restoredOn || 0),
     };
   }, []);
 
-  const extractPlayersFromPresenceState = useCallback((presenceState: Record<string, any>) => {
-    const parsedPlayers: Player[] = [];
+  const updatePresencePlayers = useCallback((newPlayers: Player[]) => {
+    setPresencePlayers(newPlayers);
+  }, []);
 
-    Object.values(presenceState || {}).forEach((entry: any) => {
-      const metas = Array.isArray(entry)
-        ? entry
-        : Array.isArray(entry?.metas)
-          ? entry.metas
-          : [];
+  const upsertHeartbeatPlayer = useCallback((nextPlayer: Player) => {
+    setHeartbeatPlayers((prev) => ({
+      ...prev,
+      [nextPlayer.userId]: {
+        player: nextPlayer,
+        seenAt: Date.now(),
+      },
+    }));
+  }, []);
 
-      metas.forEach((meta: any) => {
-        const parsedPlayer = toPlayer(meta);
-        if (!parsedPlayer) return;
-        parsedPlayers.push({
-          ...parsedPlayer,
-          emoji: parsedPlayer.emoji || getAvatarForUser(parsedPlayer.userId),
+  const extractPlayersFromPresenceState = useCallback(
+    (presenceState: Record<string, any>) => {
+      const parsedPlayers = new Map<string, Player>();
+
+      Object.values(presenceState || {}).forEach((entry: any) => {
+        const metas = Array.isArray(entry)
+          ? entry
+          : Array.isArray(entry?.metas)
+            ? entry.metas
+            : [];
+
+        metas.forEach((meta: any) => {
+          const parsedPlayer = toPlayer(meta);
+          if (!parsedPlayer) return;
+          parsedPlayers.set(parsedPlayer.userId, parsedPlayer);
         });
+      });
+
+      return Array.from(parsedPlayers.values());
+    },
+    [toPlayer]
+  );
+
+  const emitHeartbeat = useCallback(() => {
+    if (!channel || !isSubscribed || !player) return;
+
+    const payload = {
+      userId: player.userId,
+      name: player.name,
+      leader: player.leader,
+      emoji: player.emoji || getAvatarForUser(player.userId),
+      restoredOn: player.restoredOn,
+    };
+
+    channel.send({
+      type: "broadcast",
+      event: HEARTBEAT_EVENT,
+      payload,
+    });
+
+    upsertHeartbeatPlayer(payload as Player);
+  }, [channel, isSubscribed, player, upsertHeartbeatPlayer]);
+
+  const players = useMemo(() => {
+    const now = Date.now();
+    const activeHeartbeatPlayers = Object.values(heartbeatPlayers)
+      .filter((entry) => now - entry.seenAt < HEARTBEAT_TIMEOUT_MS)
+      .map((entry) => entry.player);
+
+    const merged = new Map<string, Player>();
+
+    presencePlayers.forEach((p) => merged.set(p.userId, p));
+    activeHeartbeatPlayers.forEach((p) => {
+      merged.set(p.userId, {
+        ...p,
+        emoji: p.emoji || getAvatarForUser(p.userId),
       });
     });
 
-    return parsedPlayers;
-  }, [toPlayer]);
+    if (player?.userId && !merged.has(player.userId)) {
+      merged.set(player.userId, {
+        ...player,
+        emoji: player.emoji || getAvatarForUser(player.userId),
+      });
+    }
+
+    return Array.from(merged.values());
+  }, [heartbeatPlayers, player, presencePlayers]);
 
   const getDeterministicLeader = useCallback((activePlayers: Player[]) => {
     return activePlayers
@@ -100,137 +167,164 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
   }, [player]);
 
   useEffect(() => {
-    if (channel) {
-      channel.on("presence", { event: "sync" }, () => {
-        const presenceState = channel.presenceState();
-        const syncedPlayers = extractPlayersFromPresenceState(presenceState as Record<string, any>);
-        updatePlayers(syncedPlayers);
-      });
+    if (!channel) return;
 
-      channel.on("presence", { event: "join" }, (presence) => {
-        const joinedPresence = presence.newPresences?.[0];
-        const newPlayer = toPlayer(joinedPresence);
-        if (!newPlayer) return;
-        updatePlayers(
-          extractPlayersFromPresenceState(
-            channel.presenceState() as Record<string, any>
-          )
-        );
+    channel.on("presence", { event: "sync" }, () => {
+      const presenceState = channel.presenceState();
+      const syncedPlayers = extractPlayersFromPresenceState(
+        presenceState as Record<string, any>
+      );
+      updatePresencePlayers(syncedPlayers);
+      syncedPlayers.forEach(upsertHeartbeatPlayer);
+    });
 
-        if (newPlayer.leader) {
+    channel.on("presence", { event: "join" }, (presence) => {
+      const joinedPresence = presence.newPresences?.[0];
+      const parsed = toPlayer(joinedPresence);
+      if (parsed) {
+        upsertHeartbeatPlayer(parsed);
+
+        if (parsed.leader) {
           setHasLeaderExited(undefined);
         } else {
-          setNewPlayer(newPlayer);
+          setNewPlayer(parsed);
         }
-      });
+      }
 
-      channel.on("presence", { event: "leave" }, (presence) => {
-        const leftPresence = presence.leftPresences?.[0];
-        const exitedPlayer = toPlayer(leftPresence);
-        if (!exitedPlayer) return;
-        updatePlayers(
-          extractPlayersFromPresenceState(
-            channel.presenceState() as Record<string, any>
-          )
-        );
+      const syncedPlayers = extractPlayersFromPresenceState(
+        channel.presenceState() as Record<string, any>
+      );
+      updatePresencePlayers(syncedPlayers);
+      syncedPlayers.forEach(upsertHeartbeatPlayer);
+    });
 
-        if (exitedPlayer.leader) {
-          setHasLeaderExited(true);
-        }
-      });
+    channel.on("presence", { event: "leave" }, (presence) => {
+      const leftPresence = presence.leftPresences?.[0];
+      const exitedPlayer = toPlayer(leftPresence);
+      if (exitedPlayer?.leader) {
+        setHasLeaderExited(true);
+      }
 
-      channel.on("broadcast", { event: "start" }, ({ payload }) => {
-        if (Array.isArray(payload?.categories)) {
-          setAppContext({
-            type: "categories",
-            value: payload.categories,
-          });
-        }
+      const syncedPlayers = extractPlayersFromPresenceState(
+        channel.presenceState() as Record<string, any>
+      );
+      updatePresencePlayers(syncedPlayers);
+      syncedPlayers.forEach(upsertHeartbeatPlayer);
+    });
 
-        if (typeof payload?.maxRounds === "number") {
-          send({ type: "updateMaxRounds", value: payload.maxRounds });
-        }
+    channel.on("broadcast", { event: HEARTBEAT_EVENT }, ({ payload }) => {
+      const parsed = toPlayer(payload);
+      if (!parsed) return;
+      upsertHeartbeatPlayer(parsed);
+    });
 
-        send({ type: "start" });
-      });
-
-      channel.on("broadcast", { event: "responses" }, ({ payload }) => {
+    channel.on("broadcast", { event: "start" }, ({ payload }) => {
+      if (Array.isArray(payload?.categories)) {
         setAppContext({
-          type: "allResponses",
-          value: payload,
+          type: "categories",
+          value: payload.categories,
         });
-      });
+      }
 
-      channel.on("broadcast", { event: "scoringPartners" }, ({ payload }) => {
+      if (typeof payload?.maxRounds === "number") {
+        send({ type: "updateMaxRounds", value: payload.maxRounds });
+      }
+
+      send({ type: "start" });
+    });
+
+    channel.on("broadcast", { event: "responses" }, ({ payload }) => {
+      setAppContext({
+        type: "allResponses",
+        value: payload,
+      });
+    });
+
+    channel.on("broadcast", { event: "scoringPartners" }, ({ payload }) => {
+      setAppContext({
+        type: "scoringPartners",
+        value: payload,
+      });
+    });
+
+    channel.on("broadcast", { event: "score" }, ({ payload }) => {
+      setAppContext({
+        type: "allScores",
+        value: payload,
+      });
+    });
+
+    channel.on("broadcast", { event: "ready" }, ({ payload }) => {
+      setAppContext({
+        type: "ready",
+        value: payload,
+      });
+    });
+
+    channel.on("broadcast", { event: "game" }, ({ payload }) => {
+      if (payload?.currentLetter) {
         setAppContext({
-          type: "scoringPartners",
-          value: payload,
+          type: "currentLetter",
+          value: payload.currentLetter,
         });
-      });
-
-      channel.on("broadcast", { event: "score" }, ({ payload }) => {
+      }
+      if (payload?.possibleAlphabet) {
         setAppContext({
-          type: "allScores",
-          value: payload,
+          type: "possibleAlphabet",
+          value: payload.possibleAlphabet,
         });
-      });
+      }
+    });
 
-      channel.on("broadcast", { event: "ready" }, ({ payload }) => {
+    channel.on("broadcast", { event: "join" }, ({ payload = {} }) => {
+      const { round, userId, ...restOfPayload } = payload;
+
+      if (userId === player?.userId) {
         setAppContext({
-          type: "ready",
-          value: payload,
+          type: "restore",
+          value: {
+            ...restOfPayload,
+            round,
+          },
         });
-      });
 
-      channel.on("broadcast", { event: "game" }, ({ payload }) => {
-        if (payload?.currentLetter) {
-          setAppContext({
-            type: "currentLetter",
-            value: payload.currentLetter,
-          });
+        send({ type: "updateMaxRounds", value: restOfPayload.maxRounds });
+
+        if (round > 0) {
+          send({ type: "setRound", value: payload.round });
+          send({ type: "assignIsRestoringFlag" });
         }
-        if (payload?.possibleAlphabet) {
-          setAppContext({
-            type: "possibleAlphabet",
-            value: payload.possibleAlphabet,
-          });
-        }
-      });
+      }
+    });
 
-      channel.on("broadcast", { event: "join" }, ({ payload = {} }) => {
-        const { round, userId, ...restOfPayload } = payload;
-
-        if (userId === player?.userId) {
-          setAppContext({
-            type: "restore",
-            value: {
-              ...restOfPayload,
-              round,
-            },
-          });
-
-          send({ type: "updateMaxRounds", value: restOfPayload.maxRounds });
-
-          if (round > 0) {
-            send({ type: "setRound", value: payload.round });
-            send({ type: "assignIsRestoringFlag" });
-          }
-        }
-      });
-
-      channel.subscribe((status) => {
-        setIsSubscribed(status === "SUBSCRIBED");
-        if (status === "SUBSCRIBED") {
-          channel.track(player || {});
-        }
-      });
-    }
+    channel.subscribe((status) => {
+      const subscribed = status === "SUBSCRIBED";
+      setIsSubscribed(subscribed);
+      if (subscribed) {
+        channel.track(player || {});
+      }
+    });
 
     return () => {
-      if (channel) channel.unsubscribe();
+      channel.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channel, extractPlayersFromPresenceState, toPlayer, updatePlayers]);
+  }, [channel, extractPlayersFromPresenceState, player?.userId, send, toPlayer, updatePresencePlayers, upsertHeartbeatPlayer]);
+
+  useInterval(() => {
+    emitHeartbeat();
+  }, channel && isSubscribed ? HEARTBEAT_INTERVAL_MS : null);
+
+  useInterval(() => {
+    setHeartbeatPlayers((prev) => {
+      const now = Date.now();
+      const filtered = Object.fromEntries(
+        Object.entries(prev).filter(([, entry]) => now - entry.seenAt < HEARTBEAT_TIMEOUT_MS)
+      );
+
+      return Object.keys(filtered).length === Object.keys(prev).length ? prev : filtered;
+    });
+  }, 2500);
 
   useInterval(
     () => {
@@ -261,11 +355,9 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
   }, [players, player?.userId, getDeterministicLeader]);
 
   useEffect(() => {
-    if (channel && player) {
-      channel.track(player);
-    }
+    emitHeartbeat();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channel, player?.leader, player?.restoredOn]);
+  }, [channel, isSubscribed, player?.leader, player?.restoredOn]);
 
   useInterval(
     () => {
