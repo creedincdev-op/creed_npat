@@ -6,8 +6,15 @@ import { UserCard } from "../user-card";
 import { UserList } from "../user-list";
 import styles from "./waiting-room.module.css";
 
-export const WaitingRoom: StateComponentType = ({ channel, context, players, send }) => {
+export const WaitingRoom: StateComponentType = ({
+  channel,
+  context,
+  isSubscribed,
+  players,
+  send,
+}) => {
   const [copyTimeout, setCopyTimeout] = useState<number>(0);
+  const [startError, setStartError] = useState<string>("");
   const [appContext] = useAppContext();
 
   const { player } = appContext;
@@ -29,15 +36,24 @@ export const WaitingRoom: StateComponentType = ({ channel, context, players, sen
   }, [context.roomCode]);
 
   const startGame = useCallback(async () => {
-    if (channel) {
-      await channel.send({
-        type: "broadcast",
-        event: "start",
-      });
+    if (!channel || !isSubscribed) {
+      setStartError("Realtime is still connecting. Wait 1-2 seconds.");
+      return;
     }
 
+    const result = await channel.send({
+      type: "broadcast",
+      event: "start",
+    });
+
+    if (result !== "ok") {
+      setStartError("Network sync issue. Please try once more.");
+      return;
+    }
+
+    setStartError("");
     send({ type: "start" });
-  }, [channel, send]);
+  }, [channel, isSubscribed, send]);
 
   return (
     <div className={styles.container}>
@@ -77,8 +93,13 @@ export const WaitingRoom: StateComponentType = ({ channel, context, players, sen
       )}
 
       <div className={styles.buttonWrapper}>
-        {player?.leader && <button onClick={startGame}>Start Game</button>}
+        {player?.leader && (
+          <button onClick={startGame} disabled={!isSubscribed}>
+            Start Game
+          </button>
+        )}
       </div>
+      {startError && <p>{startError}</p>}
     </div>
   );
 };

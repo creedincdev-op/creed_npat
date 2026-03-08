@@ -10,7 +10,7 @@ type FormData = {
   user: string;
 };
 
-export const JoinGame: StateComponentType = ({ channel, context, send }) => {
+export const JoinGame: StateComponentType = ({ context, send }) => {
   const [, setAppContext] = useAppContext();
   const { handleSubmit, register } = useForm<FormData>({
     mode: "onSubmit",
@@ -24,10 +24,11 @@ export const JoinGame: StateComponentType = ({ channel, context, send }) => {
     async (formData: FormData) => {
       const { roomCode, user } = formData;
       const newPlayer = createPlayer(user);
+      const normalizedRoomCode = String(roomCode || "").trim().toLowerCase();
 
       setAppContext({ type: "player", value: newPlayer });
 
-      send({ type: "ready", value: roomCode });
+      send({ type: "ready", value: normalizedRoomCode });
     },
     [send, setAppContext]
   );

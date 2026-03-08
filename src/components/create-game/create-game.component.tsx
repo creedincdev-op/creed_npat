@@ -18,7 +18,7 @@ type FormValues = {
   user: string;
 };
 
-export const CreateGame: StateComponentType = ({ channel, context, send }) => {
+export const CreateGame: StateComponentType = ({ send }) => {
   const [, setAppContext] = useAppContext();
   const { handleSubmit, register } = useForm<FormValues>({
     mode: "onSubmit",
@@ -32,10 +32,10 @@ export const CreateGame: StateComponentType = ({ channel, context, send }) => {
     async (formData: FormValues) => {
       const { categories, rounds, user } = formData;
       const newPlayer = createPlayer(user, true);
-      const newRoomCode = generateRoomName();
+      const newRoomCode = generateRoomName().trim().toLowerCase();
 
       setAppContext({ type: "categories", value: categories });
-      setAppContext({ type: "maxRounds", value: parseInt(rounds) });
+      setAppContext({ type: "maxRounds", value: parseInt(rounds, 10) });
       setAppContext({ type: "player", value: newPlayer });
 
       send({ type: "ready", value: newRoomCode });

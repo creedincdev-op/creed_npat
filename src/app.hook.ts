@@ -14,11 +14,15 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
 
   const { player } = appContext;
 
+  const normalizedRoomCode = useMemo(() => {
+    return String(context.roomCode || "").trim().toLowerCase();
+  }, [context.roomCode]);
+
   const channel = useMemo(() => {
-    if (context.roomCode && player?.userId) {
-      return getChannel(context.roomCode, player?.userId);
+    if (normalizedRoomCode && player?.userId) {
+      return getChannel(normalizedRoomCode, player?.userId);
     }
-  }, [context.roomCode, getChannel, player?.userId]);
+  }, [getChannel, normalizedRoomCode, player?.userId]);
 
   const updatePlayers = useCallback((newPlayers: Player[]) => {
     setPlayers(newPlayers);
