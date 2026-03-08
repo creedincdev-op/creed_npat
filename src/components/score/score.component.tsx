@@ -1,5 +1,5 @@
-import { isEmpty, map, pipe, propEq, reject } from "ramda";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { isEmpty, propEq, reject } from "ramda";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useAsync } from "react-use";
 import { useAppContext } from "../../app.context";
 import { Player, StateComponentType } from "../../app.types";
@@ -23,6 +23,17 @@ export const Score: StateComponentType = ({
   const { allResponses, categories = [], player, scoringPartners } = appContext;
   const userId = useMemo(() => player?.userId ?? "", [player]);
 
+  const allResponsesForRound = useMemo(
+    () => allResponses[context.round] ?? {},
+    [allResponses, context.round]
+  );
+
+  const eligiblePlayersForScoring = useMemo(() => {
+    return reject<Player>(propEq("restoredOn", round))(players).filter(
+      (p) => Boolean(allResponsesForRound[p.userId])
+    );
+  }, [allResponsesForRound, players, round]);
+
   const userResponseForRound = useMemo(() => {
     return allResponses[round]?.[userId];
   }, [allResponses, round, userId]);
@@ -44,13 +55,10 @@ export const Score: StateComponentType = ({
       await delay(1000);
 
       if (player?.leader) {
-        const newScoringPartners = pipe(
-          reject<Player>(
-            propEq("restoredOn", round)
-          ),
-          map((player) => player?.userId ?? ""),
-          generateScoringPartners
-        )(players);
+        const scoringUserIds = eligiblePlayersForScoring.map(
+          (currentPlayer: Player) => currentPlayer.userId
+        );
+        const newScoringPartners = generateScoringPartners(scoringUserIds);
 
         await channel.send({
           type: "broadcast",
@@ -64,7 +72,7 @@ export const Score: StateComponentType = ({
         });
       }
     }
-  }, [channel, userResponseForRound]);
+  }, [channel, eligiblePlayersForScoring, userResponseForRound]);
 
   const [currentScore, setCurrentScore] = useState<Record<string, number>>({});
 
@@ -72,32 +80,23 @@ export const Score: StateComponentType = ({
     return scoringPartners?.[userId];
   }, [scoringPartners, userId]);
 
-  const allResponsesForRound = useMemo(
-    () => allResponses[context.round] ?? {},
-    [allResponses, context.round]
-  );
-
   const responseList = useMemo(() => {
-    const playersToScore = reject<Player>(
-      propEq("restoredOn", round)
-    )(players);
-
     return transformReponses(
       allResponsesForRound,
       playerIdToScore,
-      playersToScore,
+      eligiblePlayersForScoring
     );
-  }, [allResponsesForRound, playerIdToScore, players, round]);
+  }, [allResponsesForRound, eligiblePlayersForScoring, playerIdToScore]);
 
   const similarityCheck = useCallback(
-    (userId: string) => (category: string) => {
-      const currentUserResponse = allResponsesForRound?.[userId]?.[category];
+    (targetUserId: string) => (category: string) => {
+      const currentUserResponse = allResponsesForRound?.[targetUserId]?.[category];
       const currentUserResponseValue = currentUserResponse
         ? currentUserResponse.toLowerCase().trim()
         : null;
 
       return Object.entries(allResponsesForRound)
-        .filter(([currentUserId]) => userId !== currentUserId)
+        .filter(([currentUserId]) => targetUserId !== currentUserId)
         .some(([, responses]: [string, Record<string, string>]) => {
           const otherResponse = responses?.[category];
           const otherResponseValue = otherResponse
@@ -117,7 +116,12 @@ export const Score: StateComponentType = ({
   useEffect(() => {
     const playerToScoreResponses = allResponsesForRound[playerIdToScore];
 
-    if (!loading && isEmpty(currentScore) && playerToScoreResponses) {
+    if (
+      !loading &&
+      isEmpty(currentScore) &&
+      playerIdToScore &&
+      playerToScoreResponses
+    ) {
       const initialScores = Object.entries(playerToScoreResponses).reduce(
         (scores, [category]) => {
           const isSimilar = similarityCheck(playerIdToScore)(category);
@@ -141,7 +145,7 @@ export const Score: StateComponentType = ({
   ]);
 
   const onReadyClick = useCallback(async () => {
-    if (channel) {
+    if (channel && playerIdToScore) {
       const totalScore = Object.values<number>(currentScore).reduce(
         (total, score) => (total += score),
         0
@@ -163,9 +167,9 @@ export const Score: StateComponentType = ({
         type: "allScores",
         value: payload,
       });
-
-      send({ type: "submitScores" });
     }
+
+    send({ type: "submitScores" });
   }, [
     channel,
     context.round,
@@ -186,14 +190,15 @@ export const Score: StateComponentType = ({
         <div className={styles.yellowBox} />
         <span>- means duplicate answer</span>
       </div>
+
       {responseList.map(({ user, responses }, userIndex) => {
         const currentUserId = user?.userId ?? "";
         const isScoring = currentUserId === playerIdToScore;
         const similarCheckFn = similarityCheck(currentUserId);
 
         return (
-          <>
-            <div key={userIndex} className={styles.card}>
+          <Fragment key={currentUserId || userIndex}>
+            <div className={styles.card}>
               <ScoreCardHeader
                 isCurrentUser={userId === currentUserId}
                 isScoring={isScoring}
@@ -223,7 +228,7 @@ export const Score: StateComponentType = ({
                 {responseList.length > 1 && <h3>Other responses</h3>}
               </>
             )}
-          </>
+          </Fragment>
         );
       })}
     </div>

@@ -55,14 +55,26 @@ export const ScoreReview: StateComponentType = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channel, loading]);
 
+  const activePlayerIds = useMemo(() => {
+    return players.map((p) => p.userId);
+  }, [players]);
+
+  const responderIds = useMemo(() => {
+    const roundResponses = appContext.allResponses?.[round] || {};
+    return Object.keys(roundResponses);
+  }, [appContext.allResponses, round]);
+
+  const expectedReadyPlayerIds = useMemo(() => {
+    return responderIds.filter((userId) => activePlayerIds.includes(userId));
+  }, [activePlayerIds, responderIds]);
+
   const allReady = useMemo(() => {
-    return players
-      .map((player) => {
-        const { userId = "" } = player;
-        return appContext.ready?.[round]?.[userId] ?? false;
-      })
-      .every((flag) => flag === true);
-  }, [appContext.ready, players, round]);
+    if (expectedReadyPlayerIds.length === 0) return false;
+
+    return expectedReadyPlayerIds.every((userId) => {
+      return appContext.ready?.[round]?.[userId] ?? false;
+    });
+  }, [appContext.ready, expectedReadyPlayerIds, round]);
 
   const startGame = useCallback(async () => {
     if (channel) {
@@ -104,7 +116,7 @@ export const ScoreReview: StateComponentType = ({
       <h3>
         {allReady && !player?.leader
           ? "Waiting for admin to start the next round..."
-          : "Waiting for all players to finish scoring..."}
+          : "Waiting for active players to finish scoring..."}
       </h3>
 
       {playerWithScore && <UserCard player={playerWithScore} />}
@@ -117,7 +129,9 @@ export const ScoreReview: StateComponentType = ({
 
       <div className={styles.buttonWrapper}>
         {player?.leader && allReady && (
-          <button onClick={startGame}>{isLastRound ? "Go to scoreboard" : "Start Next Round"}</button>
+          <button onClick={startGame}>
+            {isLastRound ? "Go to scoreboard" : "Start Next Round"}
+          </button>
         )}
       </div>
     </div>

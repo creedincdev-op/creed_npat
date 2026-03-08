@@ -1,4 +1,4 @@
-import type { NextPage } from "next";
+﻿import type { NextPage } from "next";
 import { useCallback, useEffect } from "react";
 import { useAppMachine } from "../src/app-machine.hook";
 import { useAppChannel } from "../src/app.hook";
@@ -17,20 +17,23 @@ const Index: NextPage<{ code: string }> = ({ code }) => {
 
   const beforeUnloadListener = useCallback((event: BeforeUnloadEvent) => {
     if (stepAsString.includes("game")) {
-      return event.returnValue = true;
+      return (event.returnValue = true);
     }
   }, [stepAsString]);
-  
+
   useEffect(() => {
     addEventListener("beforeunload", beforeUnloadListener);
 
     return () => {
       removeEventListener("beforeunload", beforeUnloadListener);
-    }
-  }, [beforeUnloadListener])
+    };
+  }, [beforeUnloadListener]);
 
   return (
     <div className={styles.container}>
+      <p className={styles.creditBanner}>
+        MODIFIED VERSION 0.1.7 BY YUVRAJ | CREED INC.
+      </p>
       {Component && (
         <Component
           channel={channel}

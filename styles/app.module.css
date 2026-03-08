@@ -1,12 +1,32 @@
-.container {
+﻿.container {
   height: inherit;
   margin: auto;
   max-width: 34rem;
   padding: 2.5rem 1rem;
   width: 100%;
 }
+
+.creditBanner {
+  color: #000;
+  font-family: "Press Start 2P", monospace;
+  font-size: 1.25rem;
+  line-height: 1.6;
+  margin: 0 auto 2.2rem;
+  max-width: 100%;
+  text-align: center;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-shadow: 1px 1px 0 #111;
+}
+
 @media (min-width: 768px) {
   .container {
     padding: 2.5rem 2rem;
+  }
+
+  .creditBanner {
+    font-size: 1.7rem;
+    line-height: 1.5;
   }
 }

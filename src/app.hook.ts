@@ -24,6 +24,12 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
     setPlayers(newPlayers);
   }, []);
 
+  const getDeterministicLeader = useCallback((activePlayers: Player[]) => {
+    return activePlayers
+      .slice()
+      .sort((a, b) => a.userId.localeCompare(b.userId))[0];
+  }, []);
+
   useEffect(() => {
     if (player) {
       sessionStorage.setItem("userId", player.userId);
@@ -142,9 +148,9 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
   useInterval(
     () => {
       if (hasLeaderExited) {
-        const newLeader = players[0];
+        const newLeader = getDeterministicLeader(players);
 
-        if (newLeader.userId === player?.userId) {
+        if (newLeader?.userId === player?.userId) {
           setAppContext({ type: "assignAsLeader" });
         }
       }
@@ -153,6 +159,19 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
     },
     hasLeaderExited ? 3000 : null
   );
+
+  useEffect(() => {
+    if (!player?.userId || players.length === 0) return;
+
+    const hasLeader = players.some((p) => p.leader);
+    if (!hasLeader) {
+      const newLeader = getDeterministicLeader(players);
+      if (newLeader?.userId === player.userId) {
+        setAppContext({ type: "assignAsLeader" });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [players, player?.userId, getDeterministicLeader]);
 
   useEffect(() => {
     if (channel && player) {
