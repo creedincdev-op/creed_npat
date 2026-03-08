@@ -18,14 +18,53 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
     return String(context.roomCode || "").trim().toLowerCase();
   }, [context.roomCode]);
 
+  const presenceSessionKey = useMemo(() => {
+    if (!player?.userId) return undefined;
+    if (typeof window === "undefined") return player.userId;
+
+    const storageKey = `presence-key-${normalizedRoomCode}`;
+    const cachedKey = sessionStorage.getItem(storageKey);
+    if (cachedKey) return cachedKey;
+
+    const freshKey = `${player.userId}-${Math.random().toString(36).slice(2, 10)}`;
+    sessionStorage.setItem(storageKey, freshKey);
+    return freshKey;
+  }, [normalizedRoomCode, player?.userId]);
+
   const channel = useMemo(() => {
-    if (normalizedRoomCode && player?.userId) {
-      return getChannel(normalizedRoomCode, player?.userId);
+    if (normalizedRoomCode && presenceSessionKey) {
+      return getChannel(normalizedRoomCode, presenceSessionKey);
     }
-  }, [getChannel, normalizedRoomCode, player?.userId]);
+  }, [getChannel, normalizedRoomCode, presenceSessionKey]);
 
   const updatePlayers = useCallback((newPlayers: Player[]) => {
     setPlayers(newPlayers);
+  }, []);
+
+  const extractPlayersFromPresenceState = useCallback((presenceState: Record<string, any>) => {
+    const parsedPlayers: Player[] = [];
+
+    Object.values(presenceState || {}).forEach((entry: any) => {
+      const metas = Array.isArray(entry)
+        ? entry
+        : Array.isArray(entry?.metas)
+          ? entry.metas
+          : [];
+
+      metas.forEach((meta: any) => {
+        if (!meta || typeof meta.userId !== "string") return;
+
+        parsedPlayers.push({
+          userId: meta.userId,
+          name: meta.name || "Player",
+          leader: Boolean(meta.leader),
+          emoji: meta.emoji || "",
+          restoredOn: Number(meta.restoredOn || 0),
+        });
+      });
+    });
+
+    return parsedPlayers;
   }, []);
 
   const getDeterministicLeader = useCallback((activePlayers: Player[]) => {
@@ -44,15 +83,16 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
     if (channel) {
       channel.on("presence", { event: "sync" }, () => {
         const presenceState = channel.presenceState();
-        const players = Object.values(presenceState).map(
-          (player) => player[0]
-        ) as unknown as Player[];
-
-        updatePlayers(players);
+        const syncedPlayers = extractPlayersFromPresenceState(presenceState as Record<string, any>);
+        updatePlayers(syncedPlayers);
       });
 
       channel.on("presence", { event: "join" }, (presence) => {
-        const newPlayer = presence.newPresences[0] as unknown as Player;
+        const joinedPresence = presence.newPresences?.[0];
+        const newPlayer = (joinedPresence?.userId
+          ? joinedPresence
+          : joinedPresence?.metas?.[0]) as Player | undefined;
+        if (!newPlayer) return;
 
         if (newPlayer.leader) {
           setHasLeaderExited(undefined);
@@ -62,7 +102,11 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
       });
 
       channel.on("presence", { event: "leave" }, (presence) => {
-        const exitedPlayer = presence.leftPresences[0] as unknown as Player;
+        const leftPresence = presence.leftPresences?.[0];
+        const exitedPlayer = (leftPresence?.userId
+          ? leftPresence
+          : leftPresence?.metas?.[0]) as Player | undefined;
+        if (!exitedPlayer) return;
 
         if (exitedPlayer.leader) {
           setHasLeaderExited(true);
@@ -139,7 +183,9 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
 
       channel.subscribe((status) => {
         setIsSubscribed(status === "SUBSCRIBED");
-        channel.track(player || {});
+        if (status === "SUBSCRIBED") {
+          channel.track(player || {});
+        }
       });
     }
 

@@ -12,7 +12,7 @@ export const getEmoji = (excludeList: any[] = []) => {
   const uniqueEmojiList = EMOJIS.filter(
     (emoji) => !excludeList.includes(emoji)
   );
-  const randomIndex = getRandomNumber({ max: uniqueEmojiList.length });
+  const randomIndex = getRandomNumber({ max: uniqueEmojiList.length - 1 });
 
   return uniqueEmojiList[randomIndex];
 };

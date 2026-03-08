@@ -1,37 +1,42 @@
 .userCard {
   position: relative;
-  max-width: 7rem;
-  min-width: 3rem;
+  max-width: 12rem;
+  min-width: 7rem;
   text-align: center;
   margin: auto;
 }
-.userCard > span {
-  position: absolute;
-  top: 0;
-  right: 0;
+
+.avatarWrap {
+  height: 6rem;
+  margin-bottom: 0.4rem;
 }
 
-.emoji {
-  height: 6rem;
-  font-size: 5.5rem;
-  margin-bottom: 0.5rem;
+.avatar {
+  width: 5.2rem;
+  height: 5.2rem;
+  object-fit: contain;
+}
+
+.name {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 1.3rem;
+  line-height: 1.1;
+}
+
+.badge {
+  margin: 0.3rem 0 0;
+  font-size: 0.9rem;
+  color: dodgerblue;
 }
 
 .score {
   font-size: 1rem;
   font-weight: 600;
-  margin-top: 0.5rem !important;
+  margin-top: 0.4rem;
 }
 
-.userCard > p {
-  margin: 0;
-  overflow-wrap: break-word;
-  font-size: 2rem;
-}
-
-.leaderIndicator {
-  position: absolute;
-  left: -0.5rem;
-  bottom: 0.0625rem;
-  font-size: 0.8rem;
+.ready {
+  margin: 0.3rem 0 0;
+  font-size: 0.85rem;
 }

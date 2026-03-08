@@ -6,37 +6,38 @@
 
 .userList > div {
   position: relative;
-  max-width: 7rem;
-  min-width: 3rem;
+  max-width: 11rem;
+  min-width: 7rem;
   text-align: center;
 }
-.userList > div > span {
-  position: absolute;
-  top: 0;
-  right: -1.25rem;
+
+.avatar {
+  width: 4.8rem;
+  height: 4.8rem;
+  object-fit: contain;
+  margin-bottom: 0.4rem;
 }
 
-.emoji {
-  height: 4rem;
-  font-size: 3rem;
-  margin-bottom: 0.5rem;
+.name {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 1.2rem;
+  line-height: 1.1;
+}
+
+.badge {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: dodgerblue;
 }
 
 .score {
   font-size: 1rem;
   font-weight: 600;
-  margin-top: 0.5rem !important;
+  margin-top: 0.4rem;
 }
 
-.userList > div > p {
-  margin: 0;
-  overflow-wrap: break-word;
-  font-size: 1.125rem;
-}
-
-.leaderIndicator {
-  position: absolute;
-  left: -0.5rem;
-  bottom: 0.0625rem;
+.ready {
+  margin: 0.25rem 0 0;
   font-size: 0.8rem;
 }
