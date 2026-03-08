@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Player } from "../../app.types";
 import styles from "./score-table.module.css";
 
@@ -28,7 +29,16 @@ export const ScoreTable: React.FC<ScoreTableProps> = ({
             <div className={styles.position}>
               {player.place}
             </div>
-            <div className={styles.name}>{player.emoji} {player.name}</div>
+            <div className={styles.name}>
+              <Image
+                alt={`${player.name} avatar`}
+                className={styles.avatar}
+                height={22}
+                src={player.emoji}
+                width={22}
+              />{" "}
+              {player.name}
+            </div>
             <div className={styles.finalScore}>{player.score}</div>
           </div>
         );

@@ -1,7 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
-  <circle cx="60" cy="62" r="34" stroke="#1b1b1b" stroke-width="4"/>
-  <path d="M40 34l20-10 20 10" stroke="#1b1b1b" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="48" cy="61" r="3" fill="#1b1b1b"/>
-  <circle cx="72" cy="61" r="3" fill="#1b1b1b"/>
-  <path d="M45 78c5 4 10 6 15 6s10-2 15-6" stroke="#1b1b1b" stroke-width="4" stroke-linecap="round"/>
+  <path d="M25 38c8-17 18-24 35-24s27 7 35 24" stroke="#243044" stroke-width="4" stroke-linecap="round"/>
+  <path d="M26 41c4 17 4 33 0 46m68-46c-4 17-4 33 0 46" stroke="#243044" stroke-width="3" stroke-linecap="round"/>
+  <ellipse cx="60" cy="66" rx="27" ry="30" stroke="#243044" stroke-width="4"/>
+  <circle cx="49" cy="62" r="10" stroke="#243044" stroke-width="3"/>
+  <circle cx="71" cy="62" r="10" stroke="#243044" stroke-width="3"/>
+  <path d="M59 62h2" stroke="#243044" stroke-width="3" stroke-linecap="round"/>
+  <path d="M54 82c3 3 5 4 6 4s3-1 6-4" stroke="#243044" stroke-width="3.5" stroke-linecap="round"/>
 </svg>

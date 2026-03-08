@@ -1,8 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
-  <circle cx="60" cy="62" r="34" stroke="#1b1b1b" stroke-width="4"/>
-  <circle cx="36" cy="45" r="7" stroke="#1b1b1b" stroke-width="4"/>
-  <circle cx="84" cy="45" r="7" stroke="#1b1b1b" stroke-width="4"/>
-  <circle cx="48" cy="62" r="3" fill="#1b1b1b"/>
-  <circle cx="72" cy="62" r="3" fill="#1b1b1b"/>
-  <path d="M45 77c6 6 10 8 15 8s9-2 15-8" stroke="#1b1b1b" stroke-width="4" stroke-linecap="round"/>
+  <path d="M23 45c4-20 16-31 37-31s33 11 37 31" stroke="#243044" stroke-width="4" stroke-linecap="round"/>
+  <ellipse cx="60" cy="61" rx="29" ry="26" stroke="#243044" stroke-width="4"/>
+  <circle cx="49" cy="60" r="3.6" fill="#243044"/>
+  <circle cx="71" cy="60" r="3.6" fill="#243044"/>
+  <path d="M51 74c4 4 8 5 9 5s5-1 9-5" stroke="#243044" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M39 84c6 12 13 18 21 18s15-6 21-18" stroke="#243044" stroke-width="5" stroke-linecap="round"/>
+  <path d="M36 90l6 4m8-4l6 4m8-4l6 4m8-4l6 4" stroke="#243044" stroke-width="3" stroke-linecap="round"/>
 </svg>

@@ -10,6 +10,33 @@ type FormData = {
   user: string;
 };
 
+const extractRoomCode = (input: string) => {
+  const rawValue = String(input || "").trim();
+  if (!rawValue) return "";
+
+  const codePattern = /([a-z]+-[a-z]+-\d+)/i;
+
+  try {
+    const parsedUrl = new URL(rawValue);
+    const queryCode = parsedUrl.searchParams.get("code");
+    if (queryCode?.trim()) {
+      return queryCode.trim().toLowerCase();
+    }
+
+    const matchFromPath = parsedUrl.pathname.match(codePattern);
+    if (matchFromPath?.[1]) {
+      return matchFromPath[1].toLowerCase();
+    }
+  } catch (_) {
+    const match = rawValue.match(codePattern);
+    if (match?.[1]) {
+      return match[1].toLowerCase();
+    }
+  }
+
+  return rawValue.toLowerCase();
+};
+
 export const JoinGame: StateComponentType = ({ context, send }) => {
   const [, setAppContext] = useAppContext();
   const { handleSubmit, register } = useForm<FormData>({
@@ -23,8 +50,8 @@ export const JoinGame: StateComponentType = ({ context, send }) => {
   const onSubmitHanlder = useCallback(
     async (formData: FormData) => {
       const { roomCode, user } = formData;
-      const newPlayer = createPlayer(user);
-      const normalizedRoomCode = String(roomCode || "").trim().toLowerCase();
+      const normalizedRoomCode = extractRoomCode(roomCode);
+      const newPlayer = createPlayer(user, false, normalizedRoomCode);
 
       setAppContext({ type: "player", value: newPlayer });
 

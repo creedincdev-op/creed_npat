@@ -1,0 +1,44 @@
+.wrapper {
+  pointer-events: none;
+}
+
+.left,
+.right {
+  position: fixed;
+  top: 1rem;
+  z-index: 120;
+  width: 3rem;
+  min-width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  border: 2px solid red;
+  background: #f4f4f4;
+  color: #111;
+  padding: 0;
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.left {
+  left: 1rem;
+}
+
+.right {
+  right: 1rem;
+}
+
+@media (max-width: 600px) {
+  .left,
+  .right {
+    top: 0.8rem;
+    width: 2.75rem;
+    min-width: 2.75rem;
+    height: 2.75rem;
+    font-size: 1.1rem;
+  }
+}

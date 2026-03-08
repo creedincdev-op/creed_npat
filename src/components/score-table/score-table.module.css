@@ -23,6 +23,9 @@
   flex-grow: 1;
   padding: 0 0.5rem;
   overflow-wrap: anywhere;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 .scoreboardItem > div:last-child,
 .scoreboardItemHighlight > div:last-child {
@@ -32,6 +35,12 @@
 
 .scoreboardItemHighlight {
   background-color: lightskyblue;
+}
+
+.avatar {
+  width: 1.15rem;
+  height: 1.15rem;
+  object-fit: contain;
 }
 
 .buttonWrapper > button {

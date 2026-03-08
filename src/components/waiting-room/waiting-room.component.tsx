@@ -3,6 +3,7 @@ import { useTimeoutFn } from "react-use";
 import { useAppContext } from "../../app.context";
 import { StateComponentType } from "../../app.types";
 import { useDelay } from "../../hooks/delay.hook";
+import { TopControls } from "../top-controls";
 import { UserList } from "../user-list";
 import styles from "./waiting-room.module.css";
 
@@ -14,6 +15,7 @@ export const WaitingRoom: StateComponentType = ({
   send,
 }) => {
   const [copyTimeout, setCopyTimeout] = useState<number>(0);
+  const [isStarting, setIsStarting] = useState(false);
   const [startError, setStartError] = useState<string>("");
   const [appContext] = useAppContext();
   const delay = useDelay();
@@ -38,52 +40,73 @@ export const WaitingRoom: StateComponentType = ({
   }, [context.roomCode]);
 
   const startGame = useCallback(async () => {
+    if (isStarting) return;
+
     if (!channel || !isSubscribed) {
       setStartError("Realtime is still connecting. Wait 1-2 seconds.");
       return;
     }
 
+    setIsStarting(true);
+    setStartError("");
+
     const payload = {
       categories,
       maxRounds,
+      round: context.round + 1,
     };
 
-    const result = await channel.send({
-      type: "broadcast",
-      event: "start",
-      payload,
-    });
+    const syncPayload = {
+      ...payload,
+      currentLetter: appContext.currentLetter,
+      possibleAlphabet: appContext.possibleAlphabet,
+    };
 
-    if (result !== "ok") {
+    try {
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        await channel.send({
+          type: "broadcast",
+          event: "start",
+          payload,
+        });
+
+        await channel.send({
+          type: "broadcast",
+          event: "syncState",
+          payload: syncPayload,
+        });
+
+        if (attempt < 5) {
+          await delay(300);
+        }
+      }
+
+      send({ type: "start" });
+    } catch (_) {
       setStartError("Network sync issue. Please try once more.");
-      return;
+    } finally {
+      setIsStarting(false);
     }
+  }, [
+    appContext.currentLetter,
+    appContext.possibleAlphabet,
+    categories,
+    channel,
+    context.round,
+    delay,
+    isStarting,
+    isSubscribed,
+    maxRounds,
+    send,
+  ]);
 
-    await delay(350);
-    await channel.send({
-      type: "broadcast",
-      event: "start",
-      payload,
-    });
-    await delay(350);
-    await channel.send({
-      type: "broadcast",
-      event: "start",
-      payload,
-    });
-
-    setStartError("");
-    send({ type: "start" });
-  }, [categories, channel, delay, isSubscribed, maxRounds, send]);
+  const exitToHome = useCallback(() => {
+    window.location.href = "/";
+  }, []);
 
   return (
     <div className={styles.container}>
-      <button className={styles.controlLeft} type="button" aria-label="Mute">
-        ??
-      </button>
-      <button className={styles.controlRight} type="button" aria-label="Exit">
-        X
-      </button>
+      <TopControls onExit={exitToHome} />
 
       <div className={styles.roomCodeContainer}>
         <p>Your Game Code is:</p>
@@ -114,8 +137,8 @@ export const WaitingRoom: StateComponentType = ({
 
       <div className={styles.buttonWrapper}>
         {player?.leader && (
-          <button onClick={startGame} disabled={!isSubscribed}>
-            Start Game
+          <button onClick={startGame} disabled={!isSubscribed || isStarting}>
+            {isStarting ? "Starting..." : "Start Game"}
           </button>
         )}
       </div>

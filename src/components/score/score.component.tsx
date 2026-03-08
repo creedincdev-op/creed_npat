@@ -6,6 +6,7 @@ import { Player, StateComponentType } from "../../app.types";
 import { generateScoringPartners } from "../../app.utils";
 import { DEFAULT_CATEGORIES } from "../../constants";
 import { useDelay } from "../../hooks/delay.hook";
+import { TopControls } from "../top-controls";
 import { UserList } from "../user-list";
 import { ScoreCardBody } from "./card-body";
 import { ScoreCardHeader } from "./card-header";
@@ -188,18 +189,17 @@ export const Score: StateComponentType = ({
     setAppContext,
   ]);
 
+  const exitToHome = useCallback(() => {
+    window.location.href = "/";
+  }, []);
+
   if (loading) {
     return <div className={styles.loading}><h3>Submit Responses...</h3></div>;
   }
 
   return (
     <div className={styles.container}>
-      <button className={styles.controlLeft} type="button" aria-label="Mute">
-        ??
-      </button>
-      <button className={styles.controlRight} type="button" aria-label="Exit">
-        X
-      </button>
+      <TopControls onExit={exitToHome} />
 
       <div className={styles.topPlayers}>
         <UserList players={orderedPlayers} />

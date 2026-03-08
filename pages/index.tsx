@@ -1,5 +1,5 @@
 ﻿import type { NextPage } from "next";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAppMachine } from "../src/app-machine.hook";
 import { useAppChannel } from "../src/app.hook";
 import { useWakeLock } from "../src/hooks/wake-lock.hook";
@@ -7,6 +7,7 @@ import styles from "../styles/app.module.css";
 
 const Index: NextPage<{ code: string }> = ({ code }) => {
   const { context, Component, send, stepAsString } = useAppMachine(code);
+  const [creditIntroVisible, setCreditIntroVisible] = useState(true);
 
   useWakeLock();
 
@@ -29,9 +30,21 @@ const Index: NextPage<{ code: string }> = ({ code }) => {
     };
   }, [beforeUnloadListener]);
 
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setCreditIntroVisible(false);
+    }, 3200);
+
+    return () => window.clearTimeout(id);
+  }, []);
+
   return (
     <div className={styles.container}>
-      <p className={styles.creditBanner}>
+      <p
+        className={`${styles.creditBanner} ${
+          creditIntroVisible ? styles.creditBannerIntro : styles.creditBannerDocked
+        }`}
+      >
         MODIFIED VERSION 0.1.7 BY YUVRAJ | CREED INC.
       </p>
       {Component && (

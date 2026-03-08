@@ -17,7 +17,11 @@ export const Scoreboard: StateComponentType = ({ context, players, send }) => {
   const staticPlayers = useMemo(() => playersWithScore, []);
 
   const currentPlayerWithScores = useMemo(
-    () => staticPlayers[position],
+    () =>
+      staticPlayers[position] || {
+        place: staticPlayers.length,
+        tied: false,
+      },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
@@ -34,19 +38,19 @@ export const Scoreboard: StateComponentType = ({ context, players, send }) => {
         {currentPlayerWithScores.place === 1 &&
         !currentPlayerWithScores.tied ? (
           <>
-            <span>⭐</span>
+            <span>*</span>
             <span>
               Congratulations,
               <br />
               you won!
             </span>
-            <span>🏆</span>
+            <span>*</span>
           </>
         ) : currentPlayerWithScores.tied ? (
           <>
             <span></span>
             <span>You tied for #{currentPlayerWithScores.place}</span>
-            <span>👔</span>
+            <span>*</span>
           </>
         ) : (
           <>

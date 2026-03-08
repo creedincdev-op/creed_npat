@@ -31,10 +31,27 @@ export const getAvatarForUser = (userId: string) => {
   return EMOJIS[idx];
 };
 
-export const createPlayer = (name: string, leader: boolean = false) => {
+const normalizeRoomCode = (roomCode: string = "") => {
+  return roomCode.trim().toLowerCase();
+};
+
+const getRoomUserStorageKey = (roomCode: string = "") => {
+  const normalizedRoomCode = normalizeRoomCode(roomCode);
+  return normalizedRoomCode ? `userId:${normalizedRoomCode}` : "userId";
+};
+
+export const createPlayer = (
+  name: string,
+  leader: boolean = false,
+  roomCode: string = ""
+) => {
+  const roomUserStorageKey = getRoomUserStorageKey(roomCode);
   const userId =
-    sessionStorage.getItem("userId") ||
+    sessionStorage.getItem(roomUserStorageKey) ||
     integer(100000000, 999999999)(nativeMath).toString();
+
+  sessionStorage.setItem(roomUserStorageKey, userId);
+  sessionStorage.setItem("userId", userId);
 
   return {
     userId,

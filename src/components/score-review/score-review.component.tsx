@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAsync } from "react-use";
 import { useAppContext } from "../../app.context";
 import { StateComponentType } from "../../app.types";
 import { useDelay } from "../../hooks/delay.hook";
 import { usePlayersWithScore } from "../score-table";
+import { TopControls } from "../top-controls";
 import { UserCard } from "../user-card";
 import { UserList } from "../user-list";
 import styles from "./score-review.module.css";
@@ -15,6 +16,7 @@ export const ScoreReview: StateComponentType = ({
   send,
 }) => {
   const [appContext, setAppContext] = useAppContext();
+  const [isStarting, setIsStarting] = useState(false);
   const delay = useDelay();
 
   const { player } = appContext;
@@ -77,15 +79,60 @@ export const ScoreReview: StateComponentType = ({
   }, [appContext.ready, expectedReadyPlayerIds, round]);
 
   const startGame = useCallback(async () => {
-    if (channel) {
-      await channel.send({
-        type: "broadcast",
-        event: "start",
-      });
-    }
+    if (!channel || isStarting) return;
 
-    send({ type: "start" });
-  }, [channel, send]);
+    setIsStarting(true);
+
+    const payload = {
+      categories: appContext.categories,
+      maxRounds: context.maxRounds,
+      round: context.round + 1,
+    };
+
+    const syncPayload = {
+      ...payload,
+      currentLetter: appContext.currentLetter,
+      possibleAlphabet: appContext.possibleAlphabet,
+    };
+
+    try {
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        await channel.send({
+          type: "broadcast",
+          event: "start",
+          payload,
+        });
+
+        await channel.send({
+          type: "broadcast",
+          event: "syncState",
+          payload: syncPayload,
+        });
+
+        if (attempt < 5) {
+          await delay(300);
+        }
+      }
+
+      send({ type: "start" });
+    } finally {
+      setIsStarting(false);
+    }
+  }, [
+    appContext.categories,
+    appContext.currentLetter,
+    appContext.possibleAlphabet,
+    channel,
+    context.maxRounds,
+    context.round,
+    delay,
+    isStarting,
+    send,
+  ]);
+
+  const exitToHome = useCallback(() => {
+    window.location.href = "/";
+  }, []);
 
   const { playersWithScore } = usePlayersWithScore(
     player?.userId ?? "",
@@ -111,6 +158,7 @@ export const ScoreReview: StateComponentType = ({
 
   return (
     <div className={styles.container}>
+      <TopControls onExit={exitToHome} />
       <h1>Current Scores</h1>
 
       <h3>
@@ -129,7 +177,7 @@ export const ScoreReview: StateComponentType = ({
 
       <div className={styles.buttonWrapper}>
         {player?.leader && allReady && (
-          <button onClick={startGame}>
+          <button disabled={isStarting} onClick={startGame}>
             {isLastRound ? "Go to scoreboard" : "Start Next Round"}
           </button>
         )}

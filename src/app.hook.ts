@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInterval } from "react-use";
 import { useAppContext } from "./app.context";
 import { Player, StateComponentProps } from "./app.types";
@@ -22,6 +22,7 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
   const [hasLeaderExited, setHasLeaderExited] = useState<boolean>();
   const [newPlayer, setNewPlayer] = useState<Player>();
   const [appContext, setAppContext] = useAppContext();
+  const roundRef = useRef(context.round);
 
   const { player } = appContext;
 
@@ -161,6 +162,10 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
   }, []);
 
   useEffect(() => {
+    roundRef.current = context.round;
+  }, [context.round]);
+
+  useEffect(() => {
     if (player) {
       sessionStorage.setItem("userId", player.userId);
     }
@@ -230,7 +235,45 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
         send({ type: "updateMaxRounds", value: payload.maxRounds });
       }
 
+      const payloadRound = Number(payload?.round || 0);
+      if (payloadRound > roundRef.current) {
+        send({ type: "setRound", value: Math.max(payloadRound - 1, 0) });
+      }
+
       send({ type: "start" });
+    });
+
+    channel.on("broadcast", { event: "syncState" }, ({ payload }) => {
+      if (Array.isArray(payload?.categories)) {
+        setAppContext({
+          type: "categories",
+          value: payload.categories,
+        });
+      }
+
+      if (typeof payload?.maxRounds === "number") {
+        send({ type: "updateMaxRounds", value: payload.maxRounds });
+      }
+
+      if (payload?.currentLetter) {
+        setAppContext({
+          type: "currentLetter",
+          value: payload.currentLetter,
+        });
+      }
+
+      if (Array.isArray(payload?.possibleAlphabet)) {
+        setAppContext({
+          type: "possibleAlphabet",
+          value: payload.possibleAlphabet,
+        });
+      }
+
+      const payloadRound = Number(payload?.round || 0);
+      if (payloadRound > roundRef.current) {
+        send({ type: "setRound", value: Math.max(payloadRound - 1, 0) });
+        send({ type: "start" });
+      }
     });
 
     channel.on("broadcast", { event: "responses" }, ({ payload }) => {
@@ -291,8 +334,8 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
         send({ type: "updateMaxRounds", value: restOfPayload.maxRounds });
 
         if (round > 0) {
-          send({ type: "setRound", value: payload.round });
-          send({ type: "assignIsRestoringFlag" });
+          send({ type: "setRound", value: Math.max(round - 1, 0) });
+          send({ type: "start" });
         }
       }
     });
@@ -314,6 +357,22 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
   useInterval(() => {
     emitHeartbeat();
   }, channel && isSubscribed ? HEARTBEAT_INTERVAL_MS : null);
+
+  useInterval(() => {
+    if (!channel || !isSubscribed || !player?.leader || context.round < 1) return;
+
+    channel.send({
+      type: "broadcast",
+      event: "syncState",
+      payload: {
+        categories: appContext.categories,
+        currentLetter: appContext.currentLetter,
+        maxRounds: appContext.maxRounds,
+        possibleAlphabet: appContext.possibleAlphabet,
+        round: context.round,
+      },
+    });
+  }, channel && isSubscribed ? 2000 : null);
 
   useInterval(() => {
     setHeartbeatPlayers((prev) => {

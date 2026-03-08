@@ -6,6 +6,7 @@ import { Game, StateComponentType } from "../../app.types";
 import { generateDefaultResponses } from "../../app.utils";
 import { DEFAULT_CATEGORIES } from "../../constants";
 import { getLetterFromAlphabet } from "../create-game/create-game.utils";
+import { TopControls } from "../top-controls";
 import { UserList } from "../user-list";
 import styles from "./input-list.module.css";
 
@@ -111,6 +112,10 @@ export const InputList: StateComponentType = ({
     setIsSubmitted(false);
   }, [context.round]);
 
+  const exitToHome = useCallback(() => {
+    window.location.href = "/";
+  }, []);
+
   if (!currentLetter || countDown > 0) {
     return (
       <div className={styles.countdown}>
@@ -122,12 +127,7 @@ export const InputList: StateComponentType = ({
 
   return (
     <div className={styles.container}>
-      <button className={styles.controlLeft} type="button" aria-label="Mute">
-        ??
-      </button>
-      <button className={styles.controlRight} type="button" aria-label="Exit">
-        X
-      </button>
+      <TopControls onExit={exitToHome} />
 
       <div className={styles.topPlayers}>
         <UserList players={orderedPlayers} />
@@ -143,7 +143,7 @@ export const InputList: StateComponentType = ({
       </div>
 
       <div className={styles.clockWrap} aria-hidden="true">
-        <span className={styles.clockFace}>?</span>
+        <span className={styles.clockFace}>⏱</span>
       </div>
 
       <div className={styles.notebook}>

@@ -31,8 +31,8 @@ export const CreateGame: StateComponentType = ({ send }) => {
   const onSubmitHanlder = useCallback(
     async (formData: FormValues) => {
       const { categories, rounds, user } = formData;
-      const newPlayer = createPlayer(user, true);
       const newRoomCode = generateRoomName().trim().toLowerCase();
+      const newPlayer = createPlayer(user, true, newRoomCode);
 
       setAppContext({ type: "categories", value: categories });
       setAppContext({ type: "maxRounds", value: parseInt(rounds, 10) });

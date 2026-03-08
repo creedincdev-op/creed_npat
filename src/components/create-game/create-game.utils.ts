@@ -1,19 +1,21 @@
 import { adjectives, animals, uniqueNamesGenerator } from "unique-names-generator";
 import { getRandomNumber } from "../../app.utils";
 
-const uniqueRoomName = uniqueNamesGenerator({
-  dictionaries: [adjectives, animals],
-  separator: "-",
-});
+export const generateRoomName = () => {
+  const uniqueRoomName = uniqueNamesGenerator({
+    dictionaries: [adjectives, animals],
+    separator: "-",
+  });
 
-export const generateRoomName = () => `${uniqueRoomName}-${getRandomNumber()}`;
+  return `${uniqueRoomName}-${getRandomNumber()}`;
+};
 
 export const getLetterFromAlphabet = (alphabet: string[]) => {
   const alphabetCopy = alphabet.slice();
 
   alphabetCopy.sort(() => 0.5 - Math.random())
 
-  const randIdx = getRandomNumber({ max: alphabet.length });
+  const randIdx = getRandomNumber({ max: alphabet.length - 1 });
 
   const letter = alphabetCopy[randIdx];
 
