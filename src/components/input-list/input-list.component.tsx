@@ -4,6 +4,7 @@ import { useAsync, useInterval } from "react-use";
 import { useAppContext } from "../../app.context";
 import { Game, StateComponentType } from "../../app.types";
 import { generateDefaultResponses } from "../../app.utils";
+import { DEFAULT_CATEGORIES } from "../../constants";
 import { useTimer } from "../../hooks/timer.hook";
 import { getLetterFromAlphabet } from "../create-game/create-game.utils";
 import styles from "./input-list.module.css";
@@ -18,6 +19,8 @@ export const InputList: StateComponentType = ({
   const [appContext, setAppContext] = useAppContext();
   const { categories, currentLetter, maxRounds, player, possibleAlphabet } =
     appContext;
+  const activeCategories =
+    categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
 
   const {
     isRunning: isTimerRunning,
@@ -28,7 +31,7 @@ export const InputList: StateComponentType = ({
   } = useTimer();
   const { register, getValues } = useForm<any>({
     mode: "onSubmit",
-    defaultValues: generateDefaultResponses(categories),
+    defaultValues: generateDefaultResponses(activeCategories),
   });
 
   useInterval(() => {
@@ -108,11 +111,11 @@ export const InputList: StateComponentType = ({
   }, [seconds]);
 
   useEffect(() => {
-    if (categories && currentLetter && !isTimerRunning && isCountDownFinished) {
+    if (activeCategories && currentLetter && !isTimerRunning && isCountDownFinished) {
       startTimer();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categories, currentLetter, isCountDownFinished, isTimerRunning]);
+  }, [activeCategories, currentLetter, isCountDownFinished, isTimerRunning]);
 
   if (!currentLetter || countDown > 0) {
     return (
@@ -144,8 +147,8 @@ export const InputList: StateComponentType = ({
         </div>
       </div>
 
-      {categories &&
-        categories.map((category: string, index: number) => (
+      {activeCategories &&
+        activeCategories.map((category: string, index: number) => (
           <div key={index} className={styles.inputListItem}>
             <input
               {...register(category)}

@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useTimeoutFn } from "react-use";
 import { useAppContext } from "../../app.context";
 import { StateComponentType } from "../../app.types";
+import { useDelay } from "../../hooks/delay.hook";
 import { UserCard } from "../user-card";
 import { UserList } from "../user-list";
 import styles from "./waiting-room.module.css";
@@ -16,6 +17,7 @@ export const WaitingRoom: StateComponentType = ({
   const [copyTimeout, setCopyTimeout] = useState<number>(0);
   const [startError, setStartError] = useState<string>("");
   const [appContext] = useAppContext();
+  const delay = useDelay();
 
   const { maxRounds, categories, player } = appContext;
 
@@ -41,13 +43,15 @@ export const WaitingRoom: StateComponentType = ({
       return;
     }
 
+    const payload = {
+      categories,
+      maxRounds,
+    };
+
     const result = await channel.send({
       type: "broadcast",
       event: "start",
-      payload: {
-        categories,
-        maxRounds,
-      },
+      payload,
     });
 
     if (result !== "ok") {
@@ -55,9 +59,23 @@ export const WaitingRoom: StateComponentType = ({
       return;
     }
 
+    // Retry start broadcast twice for clients that subscribed milliseconds late.
+    await delay(350);
+    await channel.send({
+      type: "broadcast",
+      event: "start",
+      payload,
+    });
+    await delay(350);
+    await channel.send({
+      type: "broadcast",
+      event: "start",
+      payload,
+    });
+
     setStartError("");
     send({ type: "start" });
-  }, [categories, channel, isSubscribed, maxRounds, send]);
+  }, [categories, channel, delay, isSubscribed, maxRounds, send]);
 
   return (
     <div className={styles.container}>

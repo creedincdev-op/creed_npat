@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useInterval } from "react-use";
 import { useAppContext } from "./app.context";
 import { Player, StateComponentProps } from "./app.types";
+import { getAvatarForUser } from "./app.utils";
 import { useChannel } from "./hooks/channel.hook";
 
 export const useAppChannel = ({ context, send }: StateComponentProps) => {
@@ -64,7 +65,7 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
   }, []);
 
   const extractPlayersFromPresenceState = useCallback((presenceState: Record<string, any>) => {
-    const parsedPlayers = new Map<string, Player>();
+    const parsedPlayers: Player[] = [];
 
     Object.values(presenceState || {}).forEach((entry: any) => {
       const metas = Array.isArray(entry)
@@ -76,11 +77,14 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
       metas.forEach((meta: any) => {
         const parsedPlayer = toPlayer(meta);
         if (!parsedPlayer) return;
-        parsedPlayers.set(parsedPlayer.userId, parsedPlayer);
+        parsedPlayers.push({
+          ...parsedPlayer,
+          emoji: parsedPlayer.emoji || getAvatarForUser(parsedPlayer.userId),
+        });
       });
     });
 
-    return Array.from(parsedPlayers.values());
+    return parsedPlayers;
   }, [toPlayer]);
 
   const getDeterministicLeader = useCallback((activePlayers: Player[]) => {
@@ -107,6 +111,11 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
         const joinedPresence = presence.newPresences?.[0];
         const newPlayer = toPlayer(joinedPresence);
         if (!newPlayer) return;
+        updatePlayers(
+          extractPlayersFromPresenceState(
+            channel.presenceState() as Record<string, any>
+          )
+        );
 
         if (newPlayer.leader) {
           setHasLeaderExited(undefined);
@@ -119,6 +128,11 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
         const leftPresence = presence.leftPresences?.[0];
         const exitedPlayer = toPlayer(leftPresence);
         if (!exitedPlayer) return;
+        updatePlayers(
+          extractPlayersFromPresenceState(
+            channel.presenceState() as Record<string, any>
+          )
+        );
 
         if (exitedPlayer.leader) {
           setHasLeaderExited(true);
@@ -216,7 +230,7 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
       if (channel) channel.unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channel]);
+  }, [channel, extractPlayersFromPresenceState, toPlayer, updatePlayers]);
 
   useInterval(
     () => {
