@@ -41,8 +41,30 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
     setPlayers(newPlayers);
   }, []);
 
+  const toPlayer = useCallback((raw: any): Player | null => {
+    if (!raw) return null;
+    const candidate =
+      raw.userId
+        ? raw
+        : raw.payload?.userId
+          ? raw.payload
+          : raw.user?.userId
+            ? raw.user
+            : null;
+
+    if (!candidate || typeof candidate.userId !== "string") return null;
+
+    return {
+      userId: candidate.userId,
+      name: candidate.name || "Player",
+      leader: Boolean(candidate.leader),
+      emoji: candidate.emoji || "",
+      restoredOn: Number(candidate.restoredOn || 0),
+    };
+  }, []);
+
   const extractPlayersFromPresenceState = useCallback((presenceState: Record<string, any>) => {
-    const parsedPlayers: Player[] = [];
+    const parsedPlayers = new Map<string, Player>();
 
     Object.values(presenceState || {}).forEach((entry: any) => {
       const metas = Array.isArray(entry)
@@ -52,20 +74,14 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
           : [];
 
       metas.forEach((meta: any) => {
-        if (!meta || typeof meta.userId !== "string") return;
-
-        parsedPlayers.push({
-          userId: meta.userId,
-          name: meta.name || "Player",
-          leader: Boolean(meta.leader),
-          emoji: meta.emoji || "",
-          restoredOn: Number(meta.restoredOn || 0),
-        });
+        const parsedPlayer = toPlayer(meta);
+        if (!parsedPlayer) return;
+        parsedPlayers.set(parsedPlayer.userId, parsedPlayer);
       });
     });
 
-    return parsedPlayers;
-  }, []);
+    return Array.from(parsedPlayers.values());
+  }, [toPlayer]);
 
   const getDeterministicLeader = useCallback((activePlayers: Player[]) => {
     return activePlayers
@@ -89,9 +105,7 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
 
       channel.on("presence", { event: "join" }, (presence) => {
         const joinedPresence = presence.newPresences?.[0];
-        const newPlayer = (joinedPresence?.userId
-          ? joinedPresence
-          : joinedPresence?.metas?.[0]) as Player | undefined;
+        const newPlayer = toPlayer(joinedPresence);
         if (!newPlayer) return;
 
         if (newPlayer.leader) {
@@ -103,9 +117,7 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
 
       channel.on("presence", { event: "leave" }, (presence) => {
         const leftPresence = presence.leftPresences?.[0];
-        const exitedPlayer = (leftPresence?.userId
-          ? leftPresence
-          : leftPresence?.metas?.[0]) as Player | undefined;
+        const exitedPlayer = toPlayer(leftPresence);
         if (!exitedPlayer) return;
 
         if (exitedPlayer.leader) {
@@ -113,7 +125,18 @@ export const useAppChannel = ({ context, send }: StateComponentProps) => {
         }
       });
 
-      channel.on("broadcast", { event: "start" }, () => {
+      channel.on("broadcast", { event: "start" }, ({ payload }) => {
+        if (Array.isArray(payload?.categories)) {
+          setAppContext({
+            type: "categories",
+            value: payload.categories,
+          });
+        }
+
+        if (typeof payload?.maxRounds === "number") {
+          send({ type: "updateMaxRounds", value: payload.maxRounds });
+        }
+
         send({ type: "start" });
       });
 

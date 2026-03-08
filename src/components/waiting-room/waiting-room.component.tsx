@@ -17,7 +17,7 @@ export const WaitingRoom: StateComponentType = ({
   const [startError, setStartError] = useState<string>("");
   const [appContext] = useAppContext();
 
-  const { player } = appContext;
+  const { maxRounds, categories, player } = appContext;
 
   const otherPlayers = useMemo(
     () => players.filter((p) => player?.userId !== p.userId),
@@ -44,6 +44,10 @@ export const WaitingRoom: StateComponentType = ({
     const result = await channel.send({
       type: "broadcast",
       event: "start",
+      payload: {
+        categories,
+        maxRounds,
+      },
     });
 
     if (result !== "ok") {
@@ -53,7 +57,7 @@ export const WaitingRoom: StateComponentType = ({
 
     setStartError("");
     send({ type: "start" });
-  }, [channel, isSubscribed, send]);
+  }, [categories, channel, isSubscribed, maxRounds, send]);
 
   return (
     <div className={styles.container}>

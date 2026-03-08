@@ -17,14 +17,30 @@ export const getEmoji = (excludeList: any[] = []) => {
   return uniqueEmojiList[randomIndex];
 };
 
+const hashString = (value: string) => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+};
+
+export const getAvatarForUser = (userId: string) => {
+  const idx = hashString(userId) % EMOJIS.length;
+  return EMOJIS[idx];
+};
+
 export const createPlayer = (name: string, leader: boolean = false) => {
-  const userId = sessionStorage.getItem("userId") || integer(100000000, 999999999)(nativeMath).toString();
+  const userId =
+    sessionStorage.getItem("userId") ||
+    integer(100000000, 999999999)(nativeMath).toString();
 
   return {
     userId,
     name,
     leader,
-    emoji: getEmoji(),
+    emoji: getAvatarForUser(userId),
   };
 };
 
