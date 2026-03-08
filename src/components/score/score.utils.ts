@@ -1,5 +1,6 @@
 import { filter, indexBy, map, pipe, prop, toPairs } from "ramda";
 import { Player } from "../../app.types";
+import { getAvatarForUser } from "../../app.utils";
 
 export const sortUserList =
   (scoringId: string) => (allResponses: [string, any][]) => {
@@ -31,9 +32,17 @@ export const transformReponses = (
     toPairs,
     sortUserList(playerIdToScore),
     map(([userId, responses]) => ({
-      user: playersIndexByUserId?.[userId],
+      user:
+        playersIndexByUserId?.[userId] ||
+        ({
+          userId,
+          name: userId,
+          leader: false,
+          emoji: getAvatarForUser(userId),
+          restoredOn: 0,
+        } as Player),
       responses,
     }) as Response),
-    filter<Response>((response) => Boolean(response.user))
+    filter<Response>((response) => Boolean(response.responses))
   )(allResponses);
 };

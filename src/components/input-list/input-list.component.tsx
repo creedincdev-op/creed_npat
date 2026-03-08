@@ -5,7 +5,6 @@ import { useAppContext } from "../../app.context";
 import { Game, StateComponentType } from "../../app.types";
 import { generateDefaultResponses } from "../../app.utils";
 import { DEFAULT_CATEGORIES } from "../../constants";
-import { useTimer } from "../../hooks/timer.hook";
 import { getLetterFromAlphabet } from "../create-game/create-game.utils";
 import styles from "./input-list.module.css";
 
@@ -16,19 +15,12 @@ export const InputList: StateComponentType = ({
   send,
 }) => {
   const [countDown, setCountdown] = useState(5);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [appContext, setAppContext] = useAppContext();
   const { categories, currentLetter, maxRounds, player, possibleAlphabet } =
     appContext;
   const activeCategories =
     categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
-
-  const {
-    isRunning: isTimerRunning,
-    mute,
-    seconds,
-    startTimer,
-    toggleMute,
-  } = useTimer();
   const { register, getValues } = useForm<any>({
     mode: "onSubmit",
     defaultValues: generateDefaultResponses(activeCategories),
@@ -76,6 +68,7 @@ export const InputList: StateComponentType = ({
             values: getValues(),
           },
         });
+        setIsSubmitted(true);
 
         send({ type: "submitResponses" });
       });
@@ -84,7 +77,7 @@ export const InputList: StateComponentType = ({
   }, [channel, isSubscribed, send]);
 
   const onSubmitHanlder = useCallback(async () => {
-    if (channel) {
+    if (channel && !isSubmitted) {
       await channel.send({
         type: "broadcast",
         event: "submit",
@@ -98,24 +91,15 @@ export const InputList: StateComponentType = ({
           values: getValues(),
         },
       });
+      setIsSubmitted(true);
 
       send({ type: "submitResponses" });
     }
-  }, [channel, context.round, getValues, player?.userId, send, setAppContext]);
+  }, [channel, context.round, getValues, isSubmitted, player?.userId, send, setAppContext]);
 
   useEffect(() => {
-    if (player?.leader && seconds === 0) {
-      onSubmitHanlder();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seconds]);
-
-  useEffect(() => {
-    if (activeCategories && currentLetter && !isTimerRunning && isCountDownFinished) {
-      startTimer();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCategories, currentLetter, isCountDownFinished, isTimerRunning]);
+    setIsSubmitted(false);
+  }, [context.round]);
 
   if (!currentLetter || countDown > 0) {
     return (
@@ -140,11 +124,6 @@ export const InputList: StateComponentType = ({
             Current Letter: <span className={styles.currentLetter}>{currentLetter}</span>
           </h2>
         </div>
-
-        <div className={styles.rightContent}>
-          <p>{seconds}</p>
-          <button onClick={toggleMute}>{mute ? "Unmute" : "Mute"}</button>
-        </div>
       </div>
 
       {activeCategories &&
@@ -161,7 +140,7 @@ export const InputList: StateComponentType = ({
         ))}
 
       <div className={styles.buttonWrapper}>
-        <button disabled={seconds === 0} onClick={onSubmitHanlder}>
+        <button disabled={isSubmitted} onClick={onSubmitHanlder}>
           Submit
         </button>
       </div>

@@ -4,6 +4,7 @@ import { useAsync } from "react-use";
 import { useAppContext } from "../../app.context";
 import { Player, StateComponentType } from "../../app.types";
 import { generateScoringPartners } from "../../app.utils";
+import { DEFAULT_CATEGORIES } from "../../constants";
 import { useDelay } from "../../hooks/delay.hook";
 import { ScoreCardBody } from "./card-body";
 import { ScoreCardHeader } from "./card-header";
@@ -21,6 +22,7 @@ export const Score: StateComponentType = ({
 
   const { round } = context;
   const { allResponses, categories = [], player, scoringPartners } = appContext;
+  const activeCategories = categories.length > 0 ? categories : DEFAULT_CATEGORIES;
   const userId = useMemo(() => player?.userId ?? "", [player]);
 
   const allResponsesForRound = useMemo(
@@ -77,7 +79,7 @@ export const Score: StateComponentType = ({
   const [currentScore, setCurrentScore] = useState<Record<string, number>>({});
 
   const playerIdToScore = useMemo(() => {
-    return scoringPartners?.[userId];
+    return scoringPartners?.[userId] || userId;
   }, [scoringPartners, userId]);
 
   const responseList = useMemo(() => {
@@ -205,7 +207,7 @@ export const Score: StateComponentType = ({
                 name={user?.name ?? ""}
               />
               <div className={styles.scoreLayout}>
-                {categories.map((category) => {
+                {activeCategories.map((category) => {
                   return (
                     <ScoreCardBody
                       key={`${currentUserId}-${category}`}
